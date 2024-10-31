@@ -12,6 +12,7 @@ public class Parser {
         if (input.contains("|")){
             command = input.split("\\|");
         }else command = input.split(" ");
+
         if (command.length != 2 && input.contains("|")) {
             System.out.println("Invalid pipe command format. Usage: <command1> | <command2>");
             return;

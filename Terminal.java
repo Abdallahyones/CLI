@@ -322,8 +322,19 @@ public class Terminal {
 
         String[] firstArgs = firstCommandParts.length > 1 ? Arrays.copyOfRange(firstCommandParts, 1, firstCommandParts.length) : new String[0];
         if (firstCmd.equals("pwd")) pwd();
-        else if (firstCmd.equals("ls")) ls();
-        else if (firstCmd.equals("cat")) cat();
+        else if (firstCmd.equals("ls")){
+            myParser.initializeCommand(firstCommand);
+            if(myParser.haveArgs())
+                ls(myParser.getarg());
+            else ls();
+        }
+        else if (firstCmd.equals("cat")){
+            myParser.initializeCommand(firstCommand);
+            if(myParser.haveArgs())
+                cat(myParser.getPath());
+            else
+                cat();
+        }
         else {
             System.setOut(originalOut);
             System.out.println("Unsupported command for piping: " + firstCmd);

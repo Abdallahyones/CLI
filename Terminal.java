@@ -59,7 +59,11 @@ public class Terminal {
             case "pwd":
                 pwd(); // done
                 break;
-            case "cd": // don't work with path
+            case "cd":
+                if (!myParser.haveArgs()){
+                    pwd();
+                    break;
+                }
                 if(myParser.isValidPath())
                     cd(myParser.getPath());
                 else
@@ -81,11 +85,18 @@ public class Terminal {
                 touch(myParser.getPath());  // done
                 break;
             case "rm":
-                rm(myParser.getPath()); // done
+                 // done
+
+                if(myParser.haveArgs() && myParser.getarg().equals("-r"))
+                    rm(myParser.getPath(2), true); // done
+                else
+                    rm(myParser.getPath(),false);
                 break;
             case "cat": // done
                 if(myParser.haveArgs())
-                    cat(myParser.getPath());
+                    for(int i = 1 ; i < myParser.getsize() ; i++){
+                        cat(myParser.getPath(i));
+                    }
                 else
                     cat();
                 break;
@@ -142,7 +153,6 @@ public class Terminal {
         else if(arg.equals("-a")){
             String[] files = workingDirectory.list();
             for (int i = 0; i < files.length ; i++) {
-                if(files[i].charAt(0)=='.') continue;
                 System.out.println(files[i]);
             }
         }
@@ -151,6 +161,11 @@ public class Terminal {
         }
     }
     public void mkdir(String name) {
+
+        if (name.isEmpty()) {
+            System.out.println("Missing argument");
+            return;
+        }
         File newDir = new File(workingDirectory, name);
 
         if (newDir.exists()) {
@@ -164,6 +179,10 @@ public class Terminal {
     }
 
     public void rmdir(String name){
+        if (name.isEmpty()) {
+            System.out.println("Missing argument");
+            return;
+        }
         File dir = new File(workingDirectory, name);
         File[] files = dir.listFiles();
         if(!dir.exists())
@@ -176,7 +195,7 @@ public class Terminal {
 
     public void touch(String name){
         if (name.isEmpty()) {
-            System.out.println("An error occurred.");
+            System.out.println("Missing Argument");
             return;
         }
         File file = new File(workingDirectory,name);
@@ -193,8 +212,27 @@ public class Terminal {
             e.printStackTrace();
         }
     }
-    public void rm(String name) {
+    public void rm(String name, boolean deleteDirectory) {
+        if (name.isEmpty()) {
+            System.out.println("Missing argument");
+            return;
+        }
         File file = new File(workingDirectory, name);
+
+
+        if (file.isDirectory()){
+            if (deleteDirectory){
+                if (file.delete()) {
+                    System.out.println("Deleted the directory: " + file.getAbsolutePath());
+                } else {
+                    System.out.println("Failed to delete the directory.");
+                }
+            }
+            else {
+                System.out.println("Cannot Delete a directory (if you want to delete a directory use -r)");
+            }
+                return;
+        }
 
         // Check if the file exists
         if (!file.exists()) {
@@ -245,7 +283,7 @@ public class Terminal {
         }
     }
     // Function to print available commands
-    private static void help() {
+    public static void help() {
         System.out.println("Available Commands:");
         System.out.println("  pwd      : Print the current directory.");
         System.out.println("  cd [dir] or .. : Change the directory.");
@@ -268,40 +306,51 @@ public class Terminal {
         CLI_open = false;
     }
     public static void mv() {
+        boolean morethan1 = myParser.getsize() > 3;
         if (myParser.getsize() < 3) {
             System.out.println("Usage: mv <source> <destination>");
             return;
         }
 
-        String sourcePath = myParser.getPath(1);
-        String destinationPath = myParser.getPath(myParser.getsize() - 1);
 
-        File sourceFile = new File(workingDirectory, sourcePath);
-        File destinationFile = new File(workingDirectory, destinationPath);
+        for (int i = 1; i < myParser.getsize() - 1; i++){
 
-        if (!sourceFile.exists()) {
-            System.out.println("Error: Source file does not exist: " + sourcePath);
-            return;
+            String sourcePath = myParser.getPath(i);
+            String destinationPath = myParser.getPath(myParser.getsize() - 1);
+
+            File sourceFile = new File(workingDirectory, sourcePath);
+            File destinationFile = new File(workingDirectory, destinationPath);
+
+            if (!sourceFile.exists()) {
+                System.out.println("Error: Source file does not exist: " + sourcePath);
+                continue;
+            }
+
+            // Check if destination is a directory
+            if (destinationFile.isDirectory()) {
+                // Move the file to the directory with the same name
+                try {
+                    Files.move(sourceFile.toPath(), new File(destinationFile, sourceFile.getName()).toPath(), StandardCopyOption.REPLACE_EXISTING);
+                    System.out.println("Moved: " + sourceFile.getName() + " -> " + destinationFile.getAbsolutePath());
+                } catch (IOException e) {
+                    System.out.println("Error: Unable to move the file. " + e.getMessage());
+                }
+            } else {
+                if (morethan1) {
+                    System.out.println("Error: No destination folder ");
+                    return;
+                }
+                // Rename the file
+                try {
+                    Files.move(sourceFile.toPath(), destinationFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+                    System.out.println("Renamed: " + sourceFile.getName() + " -> " + destinationFile.getName());
+                } catch (IOException e) {
+                    System.out.println("Error: Unable to rename the file. " + e.getMessage());
+                }
+            }
+
         }
 
-        // Check if destination is a directory
-        if (destinationFile.isDirectory()) {
-            // Move the file to the directory with the same name
-            try {
-                Files.move(sourceFile.toPath(), new File(destinationFile, sourceFile.getName()).toPath(), StandardCopyOption.REPLACE_EXISTING);
-                System.out.println("Moved: " + sourceFile.getName() + " -> " + destinationFile.getAbsolutePath());
-            } catch (IOException e) {
-                System.out.println("Error: Unable to move the file. " + e.getMessage());
-            }
-        } else {
-            // Rename the file
-            try {
-                Files.move(sourceFile.toPath(), destinationFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
-                System.out.println("Renamed: " + sourceFile.getName() + " -> " + destinationFile.getName());
-            } catch (IOException e) {
-                System.out.println("Error: Unable to rename the file. " + e.getMessage());
-            }
-        }
     }
 
     private static void pipeCommand(String input) {

@@ -36,14 +36,14 @@ public class Parser {
         return false;
     }
     private static boolean isValidPath(String path) {
-        // Regex for valid Windows paths
-        String windowsPathPattern = "^[a-zA-Z]:\\\\([^<>:\"/\\\\|?*]+(\\\\[^<>:\"/\\\\|?*]+)*)?$";
+        // Regex for valid Windows and UNIX-like paths (accepts both backslashes and forward slashes)
+        String pathPattern = "^[a-zA-Z]:[\\\\/]?([^<>:\"/\\\\|?*]+([\\\\/][^<>:\"/\\\\|?*]+)*)?$";
 
-        // Regex for valid file names (excluding forbidden characters)
-        String validFileNamePattern = "^[^<>:\"/\\\\|?*]+$";
+        // Regex for valid relative paths (accepts forward and backward slashes)
+        String relativePathPattern = "^([^<>:\"/\\\\|?*]+([\\\\/][^<>:\"/\\\\|?*]+)*)?$";
 
-        // Allowing for ".." as a valid path
-        return path.matches(windowsPathPattern) || path.equals("..") || path.matches(validFileNamePattern);
+        // Allowing for ".." as a valid path for parent directory reference
+        return path.matches(pathPattern) || path.matches(relativePathPattern) || path.equals("..");
     }
 
 
@@ -61,7 +61,7 @@ public class Parser {
 //-----------------------------------------------------------------------------
     //check arg for ls
     public boolean haveArgs(){
-        return command.length == 2;
+        return command.length >= 2;
     }
     public String getarg(){
         return command[1];

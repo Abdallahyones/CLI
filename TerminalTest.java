@@ -74,7 +74,7 @@ public class TerminalTest {
     public void testRm() {
         // Create file first
         terminal.touch(testFile);
-        terminal.rm(testFile);
+        terminal.rm(testFile,false);
 
         File file = new File(terminal.workingDirectory, testFile);
         assertFalse(file.exists(), "File should be deleted");

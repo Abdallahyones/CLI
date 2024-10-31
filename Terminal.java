@@ -17,11 +17,38 @@ public class Terminal {
     }
     public boolean start(String input) throws IOException, InterruptedException {
         myParser.initializeCommand(input);
+        if (input.contains("|")) {
+            pipeCommand(input); // not done
+            return CLI_open;
+        }
+        if (myParser.isVaildcommand()){
+            String filePath = null;
 
-        if (input.contains(">") || input.contains(">>") || input.contains("|")) {
-            handleRedirectionAndPiping(myParser.command); // not done
-        } else if (myParser.isVaildcommand()){
+            if (input.contains(">>")) {
+                String[] parts = input.split(">>");
+                input = parts[0].trim();
+                filePath = parts[1].trim();
+            } else if (input.contains(">")) {
+                String[] parts = input.split(">");
+                input = parts[0].trim();
+                filePath = parts[1].trim();
+            }
+            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+            PrintStream originalOut = System.out;
+            if (filePath != null) {
+                outputStream = new ByteArrayOutputStream();
+                System.setOut(new PrintStream(outputStream));
+            }
             execute();
+            if (filePath != null) {
+                System.setOut(originalOut);
+                String commandOutput = outputStream.toString();
+                if (input.contains(">>")) {
+                    appendToFile(new String[] { commandOutput }, filePath);
+                } else {
+                    writeToFile(new String[] { commandOutput }, filePath);
+                }
+            }
         }else{
             System.out.println("undefined command");
         }
@@ -76,7 +103,7 @@ public class Terminal {
         }
     }
 
-    public void pwd(){
+    static public void pwd(){
         System.out.println(workingDirectory.getAbsolutePath());
     }
 
@@ -97,14 +124,14 @@ public class Terminal {
         }
     }
 
-    public void ls(){
+     static public void ls(){
         String[] files = workingDirectory.list();
         for (int i = 0 ; i < files.length ; i++) {
             if(files[i].charAt(0)=='.') continue;
             System.out.println(files[i]);
         }
     }
-    public void ls(String arg){
+    static public void ls(String arg){
         if(arg.equals("-r")){
             String[] files = workingDirectory.list();
             for (int i = files.length-1; i >= 0 ; i--) {
@@ -184,12 +211,12 @@ public class Terminal {
     }
 
 
-    public void cat(){
+    static public void cat(){
         Scanner scan=new Scanner(System.in);
         String input = scan.nextLine();
         System.out.println(input);
     }
-    public void cat(String name) {
+    static public void cat(String name) {
         if (name == null || name.isEmpty()) {
             System.out.println("Error: No file name provided.");
             return;
@@ -233,7 +260,7 @@ public class Terminal {
         System.out.println("  cat [file] : Display the contents of a file.");
         System.out.println("  > [file] : Redirect output to a file.");
         System.out.println("  >> [file] : Append output to a file.");
-        System.out.println("  | : Pipe output of one command to another.");
+        System.out.println("  | : Pipe output of one command to another. [ grep[pattern] , wc ]");
         System.out.println("  exit : Exit the CLI.");
         System.out.println("  help : Display this help message.");
     }
@@ -277,78 +304,96 @@ public class Terminal {
         }
     }
 
-    // New method to handle redirection and piping
-    private void handleRedirectionAndPiping(String[] command) throws IOException, InterruptedException {
-        // Check for redirection operators
-        int redirectIndex = findOperatorIndex(command, ">", ">>");
-        int pipeIndex = findOperatorIndex(command, "|");
+    private static void pipeCommand(String input) {
+        myParser.initializeCommand(input);
 
-        if (redirectIndex != -1) {
-            String operator = command[redirectIndex].equals(">") ? ">" : ">>";
-            String[] cmd = Arrays.copyOfRange(command, 0, redirectIndex);
-            String filename = command[redirectIndex + 1];
+        String firstCommand = myParser.getCommand();
+        String secondCommand = myParser.getPath(1).trim();  // Added trim()
 
-            // Use the built-in method for listing files instead of external command
-            if (cmd.length == 1 && cmd[0].equals("ls")) {
-                // List files in the working directory and redirect to file
-                try (PrintWriter writer = new PrintWriter(new FileWriter( filename, operator.equals(">>")))) {
-                    String[] files = workingDirectory.list();
-                    if (files != null) {
-                        for (String file : files) {
-                            if (!file.startsWith(".")) { // Exclude hidden files
-                                writer.println(file);
-//                                System.out.println(file);
-                            }
-                        }
-                    }
-                    System.out.println("Output redirected to: " + filename);
-                } catch (IOException e) {
-                    System.out.println("Error writing to file: " + e.getMessage());
-                }
+//        System.out.println("First Command: " + firstCommand);  // Debugging line
+//        System.out.println("Second Command: " + secondCommand);  // Debugging line
 
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        PrintStream originalOut = System.out;
+        System.setOut(new PrintStream(outputStream));
+
+        String[] firstCommandParts = firstCommand.split("\\s+");
+        String firstCmd = firstCommandParts[0];
+
+        String[] firstArgs = firstCommandParts.length > 1 ? Arrays.copyOfRange(firstCommandParts, 1, firstCommandParts.length) : new String[0];
+        if (firstCmd.equals("pwd")) pwd();
+        else if (firstCmd.equals("ls")) ls();
+        else if (firstCmd.equals("cat")) cat();
+        else {
+            System.setOut(originalOut);
+            System.out.println("Unsupported command for piping: " + firstCmd);
+            return;
+        }
+
+        System.setOut(originalOut);
+        String pipedInput = outputStream.toString().trim();
+
+//        System.out.println("Processing second command: " + secondCommand);
+
+        if (secondCommand.startsWith("grep")) {
+            String[] grepParts = secondCommand.split("\\s+");
+            if (grepParts.length == 2) {
+                grep(pipedInput, grepParts[1]);
             } else {
-                // Handle external command if cmd is not just "ls"
-                ProcessBuilder pb = new ProcessBuilder(cmd);
-                pb.redirectOutput(operator.equals(">") ?
-                        ProcessBuilder.Redirect.to(new File(filename)) :
-                        ProcessBuilder.Redirect.appendTo(new File(filename)));
-                Process process = pb.start();
-                process.waitFor();
-                System.out.println("Output redirected to: " + filename);
+                System.out.println("Usage: grep <pattern>");
             }
-
-        } else if (pipeIndex != -1) {
-            // Handle piping
-            String[] firstCmd = Arrays.copyOfRange(command, 0, pipeIndex);
-            String[] secondCmd = Arrays.copyOfRange(command, pipeIndex + 1, command.length);
-
-            ProcessBuilder pb1 = new ProcessBuilder(firstCmd);
-            ProcessBuilder pb2 = new ProcessBuilder(secondCmd);
-            pb1.redirectErrorStream(true); // Redirect error stream to the output stream of p1
-
-            Process p1 = pb1.start();
-            try (InputStream is = p1.getInputStream(); OutputStream os = pb2.start().getOutputStream()) {
-                is.transferTo(os);
+        } else if (secondCommand.startsWith("wc")) {
+            String[] wcParts = secondCommand.split("\\s+");
+            if (wcParts.length == 1) {
+                wc(pipedInput);
+            } else {
+                System.out.println("Usage: wc");
             }
-
-            p1.waitFor();
-            System.out.println("Piped output from first command to second command.");
+        } else {
+            System.out.println("Unsupported command for piped input: " + secondCommand);
         }
-
-
-    }  // not done
-
-
-    private static int findOperatorIndex(String[] command, String... operators) {
-        for (int i = 0; i < command.length; i++) {
-            for (String operator : operators) {
-                if (command[i].equals(operator)) {
-                    return i;
-                }
-            }
-        }
-        return -1; // No operator found
     }
+
+    private static void grep(String input, String pattern) {
+        String[] lines = input.split("\n");
+        for (String line : lines) {
+            if (line.contains(pattern)) {
+                System.out.println(line);
+            }
+        }
+    }
+    private static void wc(String input) {
+        String[] lines = input.split("\n");
+        int itemCount = Arrays.stream(lines).mapToInt(line -> line.split("\\s+").length).sum();
+        System.out.println("Word Count: " + itemCount);
+    }
+
+
+    private static void writeToFile(String[] args, String filePath) {
+        File file = new File(workingDirectory,filePath);
+        try (FileWriter writer = new FileWriter(file, false)) {
+            for (String arg : args) {
+                writer.write(arg + System.lineSeparator());
+            }
+            System.out.println("Output written to " + filePath);
+        } catch (IOException e) {
+            System.out.println("An error occurred while writing to the file");
+        }
+    }
+
+
+    private static void appendToFile(String[] args, String filePath) {
+        File file = new File(workingDirectory,filePath);
+        try (FileWriter writer = new FileWriter(file, true)) {
+            for (String arg : args) {
+                writer.write(arg + System.lineSeparator());
+            }
+            System.out.println("Output appended to " + filePath);
+        } catch (IOException e) {
+            System.out.println("An error occurred while appending to the file");
+        }
+    }
+
 
 }
 

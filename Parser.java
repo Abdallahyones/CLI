@@ -9,8 +9,15 @@ public class Parser {
     public void initializeCommand(String input){
         if(command!=null)
             Arrays.fill(command, null);
-        command = input.split(" ");
+        if (input.contains("|")){
+            command = input.split("\\|");
+        }else command = input.split(" ");
+        if (command.length != 2 && input.contains("|")) {
+            System.out.println("Invalid pipe command format. Usage: <command1> | <command2>");
+            return;
+        }
         command[0] = command[0].toLowerCase();
+        if (input.contains("|")) command[1] = command[1].toLowerCase();
     }
     public String getCommand(){
         return command[0];

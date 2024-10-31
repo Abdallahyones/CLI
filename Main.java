@@ -11,7 +11,6 @@ public class Main {
         Scanner scan=new Scanner(System.in);
         boolean CLI_open = true ;
         while (CLI_open){
-
             System.out.print(myTerminal.workingDirectory.getAbsolutePath() + " :~$ ");
             String input = scan.nextLine();
 //            System.out.println();

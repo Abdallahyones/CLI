@@ -10,13 +10,14 @@ public class Terminal {
     public static String initialDirectory = System.getProperty("user.dir");
     static public File workingDirectory;
     static Parser myParser;
-    private static boolean CLI_open = true;
+    public static boolean CLI_open = true;
     public Terminal(){
         workingDirectory = new File(System.getProperty("user.home"));
         myParser= new Parser();
     }
     public boolean start(String input) throws IOException, InterruptedException {
         myParser.initializeCommand(input);
+        boolean append = false ;
         if (input.contains("|")) {
             pipeCommand(input); // not done
             return CLI_open;
@@ -26,11 +27,14 @@ public class Terminal {
 
             if (input.contains(">>")) {
                 String[] parts = input.split(">>");
+                append = true;
                 input = parts[0].trim();
+                myParser.initializeCommand(input);
                 filePath = parts[1].trim();
             } else if (input.contains(">")) {
                 String[] parts = input.split(">");
                 input = parts[0].trim();
+                myParser.initializeCommand(input);
                 filePath = parts[1].trim();
             }
             ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
@@ -43,7 +47,7 @@ public class Terminal {
             if (filePath != null) {
                 System.setOut(originalOut);
                 String commandOutput = outputStream.toString();
-                if (input.contains(">>")) {
+                if (append) {
                     appendToFile(new String[] { commandOutput }, filePath);
                 } else {
                     writeToFile(new String[] { commandOutput }, filePath);
@@ -302,7 +306,7 @@ public class Terminal {
         System.out.println("  exit : Exit the CLI.");
         System.out.println("  help : Display this help message.");
     }
-    private static void exit() {
+    public static void exit() {
         CLI_open = false;
     }
     public static void mv() {
@@ -353,7 +357,7 @@ public class Terminal {
 
     }
 
-    private static void pipeCommand(String input) {
+    public static void pipeCommand(String input) {
         myParser.initializeCommand(input);
 
         String firstCommand = myParser.getCommand();
@@ -414,7 +418,7 @@ public class Terminal {
         }
     }
 
-    private static void grep(String input, String pattern) {
+    public static void grep(String input, String pattern) {
         String[] lines = input.split("\n");
         for (String line : lines) {
             if (line.contains(pattern)) {
@@ -422,14 +426,14 @@ public class Terminal {
             }
         }
     }
-    private static void wc(String input) {
+    public static void wc(String input) {
         String[] lines = input.split("\n");
         int itemCount = Arrays.stream(lines).mapToInt(line -> line.split("\\s+").length).sum();
         System.out.println("Word Count: " + itemCount);
     }
 
 
-    private static void writeToFile(String[] args, String filePath) {
+    public static void writeToFile(String[] args, String filePath) {
         File file = new File(workingDirectory,filePath);
         try (FileWriter writer = new FileWriter(file, false)) {
             for (String arg : args) {
@@ -442,12 +446,13 @@ public class Terminal {
     }
 
 
-    private static void appendToFile(String[] args, String filePath) {
+    public static void appendToFile(String[] args, String filePath) {
         File file = new File(workingDirectory,filePath);
-        try (FileWriter writer = new FileWriter(file, true)) {
+        try (FileWriter writer = new FileWriter(file,true)) {
             for (String arg : args) {
-                writer.write(arg + System.lineSeparator());
+                writer.append(arg + System.lineSeparator());
             }
+//            writer.append("agggg");
             System.out.println("Output appended to " + filePath);
         } catch (IOException e) {
             System.out.println("An error occurred while appending to the file");

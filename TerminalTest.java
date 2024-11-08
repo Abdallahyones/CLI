@@ -9,8 +9,13 @@ import org.junit.jupiter.api.io.TempDir;
 
 
 public class TerminalTest {
+
+    private final ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+    private final PrintStream originalOut = System.out;
+
     private static final String TEST_FILE = "testFile.txt";
-    private static final File WORKING_DIRECTORY = new File(System.getProperty("user.dir"));
+    private static final File WORKING_DIRECTORY = new File(System.getProperty("user.home"));
+    private File file;
     private Terminal terminal;
 
 //    @TempDir
@@ -18,14 +23,24 @@ public class TerminalTest {
     private final String testDir = "testDir";
     private final String testFile = "testFile.txt";
 
+//    Path filePath = Paths.get(String.valueOf(WORKING_DIRECTORY), TEST_FILE);
+
+
 
     @BeforeEach
     public void setUp() {
+        // Redirect system output to capture it for testing
+        System.setOut(new PrintStream(outputStream));
         terminal = new Terminal();
+        // Set up the file path for testing
+        file = new File(WORKING_DIRECTORY, TEST_FILE);
     }
 
     @AfterEach
     public void tearDown() {
+
+        // Restore original system output after each test
+        System.setOut(originalOut);
         // Cleanup created files and directories
         File dir = new File(terminal.workingDirectory, testDir);
         if (dir.exists()) {
@@ -143,122 +158,84 @@ public class TerminalTest {
 
 
 
-    // -----------------------------------------
-//
-//    @Test
-//    public void testWriteToFile() throws IOException {
-//        String[] content = {"Hello", "World"};
-//
-//        Terminal.writeToFile(content, TEST_FILE);
-//
-//        File file = new File(WORKING_DIRECTORY, TEST_FILE);
-//        System.out.println("Write Test - File path: " + file.getAbsolutePath()); // Debug line
-//        assertTrue(file.exists(), "The file should be created.");
-//
-//        List<String> lines = Files.readAllLines(file.toPath());
-//        assertEquals(2, lines.size(), "The file should contain 2 lines.");
-//        assertEquals("Hello", lines.get(0), "First line should match input.");
-//        assertEquals("World", lines.get(1), "Second line should match input.");
-//
-//        file.delete();
-//    }
-//
-//    @Test
-//    public void testAppendToFile() throws IOException {
-//        String[] initialContent = {"Line 1", "Line 2"};
-//        Terminal.writeToFile(initialContent, TEST_FILE);
-//
-//        String[] additionalContent = {"Line 3", "Line 4"};
-//        Terminal.appendToFile(additionalContent, TEST_FILE);
-//
-//        File file = new File(WORKING_DIRECTORY, TEST_FILE);
-//        System.out.println("Append Test - File path: " + file.getAbsolutePath()); // Debug line
-//        assertTrue(file.exists(), "The file should exist.");
-//        List<String> lines = Files.readAllLines(file.toPath());
-//        System.out.println(lines); // Debug line
-//        assertEquals(4, lines.size(), "The file should contain 4 lines after appending.");
-//        assertEquals("Line 1", lines.get(0), "First line should match initial content.");
-//        assertEquals("Line 2", lines.get(1), "Second line should match initial content.");
-//        assertEquals("Line 3", lines.get(2), "Third line should match appended content.");
-//        assertEquals("Line 4", lines.get(3), "Fourth line should match appended content.");
-//
-//        file.delete();
-//    }
 
-//    @Test
-//    public void testPwdPipeGrep() {
-//        // Test command: pwd | grep <pattern>
-//        String pattern = System.getProperty("user.dir").substring(0, 3); // example pattern that matches part of pwd output
-//        String command = "pwd | grep " + pattern;
-//
-//        Terminal.pipeCommand(command);
-//
-//        String output = outputStream.toString().trim();
-//        assertTrue(output.contains(pattern), "The output should contain the specified pattern from pwd output.");
-//    }
-//
-//    @Test
-//    public void testLsPipeWc() {
-//        // Test command: ls | wc
-//        String command = "ls | wc";
-//
-//        Terminal.pipeCommand(command);
-//
-//        String output = outputStream.toString().trim();
-//        assertTrue(output.matches("Word Count: \\d+"), "The output should show a word count.");
-//    }
-//
-//    @Test
-//    public void testCatPipeGrep() {
-//        // Test command: cat <file> | grep <pattern>
-//        String testFileName = "testFile.txt";
-//        String testContent = "Hello World\nThis is a test file\nAnother line\n";
-//        String pattern = "test";
-//
-//        // Create test file with content
-//        Terminal.touch(testFileName);
-//        Terminal.writeToFile(testFileName, testContent);  // assuming this helper function exists
-//
-//        String command = "cat " + testFileName + " | grep " + pattern;
-//
-//        Terminal.pipeCommand(command);
-//
-//        String output = outputStream.toString().trim();
-//        assertTrue(output.contains("This is a test file"), "The output should contain lines matching the grep pattern.");
-//
-//        // Clean up
-//        Terminal.rm(testFileName, false);
-//    }
-//
-//    @Test
-//    public void testCatPipeWc() {
-//        // Test command: cat <file> | wc
-//        String testFileName = "testFile.txt";
-//        String testContent = "Hello World\nThis is a test file\nAnother line\n";
-//
-//        // Create test file with content
-//        Terminal.touch(testFileName);
-//        Terminal.writeToFile(testFileName, testContent);  // assuming this helper function exists
-//
-//        String command = "cat " + testFileName + " | wc";
-//
-//        Terminal.pipeCommand(command);
-//
-//        String output = outputStream.toString().trim();
-//        assertTrue(output.matches("Word Count: \\d+"), "The output should show a word count.");
-//
-//        // Clean up
-//        Terminal.rm(testFileName, false);
-//    }
-//
-//    @Test
-//    public void testUnsupportedPipeCommand() {
-//        // Test command: pwd | unsupportedCommand
-//        String command = "pwd | unsupportedCommand";
-//
-//        Terminal.pipeCommand(command);
-//
-//        String output = outputStream.toString().trim();
-//        assertTrue(output.contains("Unsupported command for piped input"), "The output should indicate an unsupported command.");
-//    }
+    // -----------------------------------------
+
+    @Test
+    public void testWriteToFile() throws IOException {
+        String[] content = {"Hello", "World"};
+
+        // Call the method under test
+        Terminal.writeToFile(content, TEST_FILE);
+
+        // Check that the file was created
+//        System.out.println(File.getAbsolutePath());
+            assertTrue(file.exists(), "The file should be created.");
+
+        // Verify the content of the file
+        List<String> lines = Files.readAllLines(file.toPath());
+        assertEquals(2, lines.size(), "The file should contain 2 lines.");
+        assertEquals("Hello", lines.get(0), "First line should match input.");
+        assertEquals("World", lines.get(1), "Second line should match input.");
+    }
+
+    @Test
+    public void testAppendToFile() throws IOException {
+        String[] initialContent = {"Hello", "World"};
+        String[] appendedContent = {"Foo", "Bar"};
+
+        Terminal.writeToFile(initialContent, TEST_FILE);
+        Terminal.appendToFile(appendedContent, TEST_FILE);
+        assertTrue(file.exists(), "The file should be created.");
+
+        List<String> lines = Files.readAllLines(file.toPath());
+        assertEquals(4, lines.size(), "The file should contain 4 lines.");
+        assertEquals("Hello", lines.get(0), "First line should match initial input.");
+        assertEquals("World", lines.get(1), "Second line should match initial input.");
+        assertEquals("Foo", lines.get(2), "Third line should match appended input.");
+        assertEquals("Bar", lines.get(3), "Fourth line should match appended input.");
+    }
+
+
+    @Test
+    public void testPipePwdToWc() {
+        // Test command: "pwd | wc"
+        Terminal.pipeCommand("pwd | wc");
+
+        String output = outputStream.toString().trim();
+        assertTrue(output.startsWith("Word Count: "), "Output should start with 'Word Count:'");
+    }
+
+
+    @Test
+    public void testPipeCatToWc() {
+        // Test command: "cat <file> | wc"
+        String filePath = "testFile.txt";
+        Terminal.pipeCommand("cat " + filePath + " | wc");
+
+        String output = outputStream.toString().trim();
+        assertTrue(output.startsWith("Word Count: "), "Output should start with 'Word Count:'");
+    }
+
+
+
+    @Test
+    public void testGrepUsageError() {
+        // Test "grep" command without a pattern
+        Terminal.pipeCommand("pwd | grep");
+
+        String output = outputStream.toString().trim();
+        assertEquals("Usage: grep <pattern>", output, "Output should indicate usage error for grep.");
+    }
+
+    @Test
+    public void testWcUsage() {
+        // Test "wc" command without arguments
+        String input = "Hello\nWorld\nTest";
+        Terminal.wc(input);
+
+        String output = outputStream.toString().trim();
+        assertTrue(output.startsWith("Word Count: "), "Output should start with 'Word Count:'");
+    }
+
 }
